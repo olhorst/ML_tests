@@ -53,6 +53,8 @@ def gammaidx(X, k):
     y = np.average(distances[1:k+1, :], axis=0)
 
     return y
+
+
 def lle(X, m, n_rule, param, tol=1e-2):
     ''' your header here!
     '''
