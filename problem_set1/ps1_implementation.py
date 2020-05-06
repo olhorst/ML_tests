@@ -37,19 +37,30 @@ class PCA:
 def pca(X, m):
     ''' your header here!
     '''
-        
-    
+
 def gammaidx(X, k):
-    ''' your header here!
-    '''
+    n, d = X.shape
+    dist = np.full((n, n), -1.0)
+    c1 = 0
+    y = np.full(n, -1.0)
+    kn = np.zeros(k)
+    for node in X:
+        c2 = 0
+        for neigh in X:
+            relpos = X[c2] - X[c1]
+            dist[c1, c2] = pow(sum(pow(relpos,2)),0.5)
+            c2 = c2+1
+        y[c1] = np.mean(np.sort(dist[c1])[1:k+1])
+        c1 = c1+1
+    return y
     
 
 
 def lle(X, m, n_rule, param, tol=1e-2):
     ''' your header here!
     '''
-    print 'Step 1: Finding the nearest neighbours by rule ' + n_rule
+    print('Step 1: Finding the nearest neighbours by rule ' + n_rule)
     
-    print 'Step 2: local reconstruction weights'
+    print('Step 2: local reconstruction weights')
     
-    print 'Step 3: compute embedding'
+    print('Step 3: compute embedding')

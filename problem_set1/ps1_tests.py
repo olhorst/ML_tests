@@ -15,7 +15,7 @@ import numpy.testing as npt
 from scipy.linalg import expm
 import matplotlib.pyplot as plt
 
-import sheet1 as imp
+import ps1_implementation as imp
 
 class TestSheet1(unittest.TestCase):
     def test_pca(self):
