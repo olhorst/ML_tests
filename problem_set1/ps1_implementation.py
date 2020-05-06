@@ -39,23 +39,20 @@ def pca(X, m):
     '''
 
 def gammaidx(X, k):
-    n, d = X.shape
-    dist = np.full((n, n), -1.0)
-    c1 = 0
-    y = np.full(n, -1.0)
-    kn = np.zeros(k)
-    for node in X:
-        c2 = 0
-        for neigh in X:
-            relpos = X[c2] - X[c1]
-            dist[c1, c2] = pow(sum(pow(relpos,2)),0.5)
-            c2 = c2+1
-        y[c1] = np.mean(np.sort(dist[c1])[1:k+1])
-        c1 = c1+1
+    '''
+    source: https://nycdatascience.com/blog/student-works/machine-learning/knn-classifier-from-scratch-numpy-only/
+    '''
+    distances = -2 * X @ X.T + np.sum(X ** 2, axis=1) + np.sum(X ** 2, axis=1)[:, np.newaxis]
+
+    distances[distances < 0] = 0
+
+    distances = distances ** .5
+    indices = np.argsort(distances, 0)
+
+    distances = np.sort(distances, 0)
+    y = np.average(distances[1:k+1, :], axis=0)
+
     return y
-    
-
-
 def lle(X, m, n_rule, param, tol=1e-2):
     ''' your header here!
     '''
