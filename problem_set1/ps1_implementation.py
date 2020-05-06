@@ -17,6 +17,23 @@ import numpy as np
 import scipy.linalg as la
 
 
+class PCA:
+    def __init__(self, Xtrain):
+        self.C = np.cov(Xtrain.T)
+        self.D, self.U = la.eig(self.C)
+
+    def project(self, Xtest, m):
+        mu = np.average(Xtest, axis=0)
+        Z = (Xtest-mu) @ self.U[:, :m]
+        return Z
+
+    def denoise(self, Xtest, m):
+        Z = self.project(Xtest, m)
+        mu = np.average(Xtest, axis=0)
+        Y = mu + Z @ self.U[:, :m].T
+        return Y
+
+
 def pca(X, m):
     ''' your header here!
     '''
