@@ -39,19 +39,37 @@ def pca(X, m):
     ''' your header here!
     '''
 
-def gammaidx(X, k):
-    '''
+
+def knn(X, k):
+    """
     source: https://nycdatascience.com/blog/student-works/machine-learning/knn-classifier-from-scratch-numpy-only/
-    '''
+    @param X:
+    @param k:
+    @return:
+    """
+    # Calculate the euclidean distances
     distances = -2 * X @ X.T + np.sum(X ** 2, axis=1) + np.sum(X ** 2, axis=1)[:, np.newaxis]
 
+    # Avoid negative numbers due to numeric error
     distances[distances < 0] = 0
 
-    distances = distances ** .5
+    distances = np.sqrt(distances)
     indices = np.argsort(distances, 0)
-
     distances = np.sort(distances, 0)
-    y = np.average(distances[1:k+1, :], axis=0)
+
+    return indices[1:k + 1, :], distances[1:k + 1, :]
+
+
+def gammaidx(X, k):
+    """
+
+    @param X:
+    @param k:
+    @return:
+    """
+    indices, distances = knn(X, k)
+
+    y = np.average(distances, axis=0)
 
     return y
 
