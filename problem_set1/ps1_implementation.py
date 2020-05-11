@@ -20,18 +20,16 @@ import matplotlib.pyplot as plt
 
 class PCA:
     def __init__(self, Xtrain):
-        self.C = np.cov(Xtrain.T)
+        self.C = np.average(Xtrain, axis=0)
         self.D, self.U = la.eig(self.C)
 
     def project(self, Xtest, m):
-        mu = np.average(Xtest, axis=0)
-        Z = (Xtest-mu) @ self.U[:, :m]
+        Z = (Xtest - self.C) @ self.U[:, :m]
         return Z
 
     def denoise(self, Xtest, m):
         Z = self.project(Xtest, m)
-        mu = np.average(Xtest, axis=0)
-        Y = mu + Z @ self.U[:, :m].T
+        Y = self.C + Z @ self.U[:, :m].T
         return Y
 
 
