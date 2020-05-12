@@ -141,6 +141,18 @@ def auc(y_true, y_pred, plot=False):
     return c
 
 
+def checkConnected(indices):
+    n = indices.shape[1]
+    checked = np.zeros(n)
+    for i in range(n):
+        ind = indices[:, i]
+        if np.ma.is_masked(ind):
+            ind = ind.compressed()
+        checked[ind] = 1
+
+    print(checked)
+    return np.all(checked == 1)
+
 def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     """
 
@@ -161,6 +173,9 @@ def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     else:
         raise ValueError('Only knn and eps-ball are excepted as n_rule')
 
+    if not checkConnected(indices):
+        raise ValueError('The resulted graph is not connected')
+
     print('Step 2: local reconstruction weights')
 
     # Initialize matrix of reconstruction weights
@@ -168,7 +183,7 @@ def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     W = np.zeros([n, n])
 
     # regularlizer only in case constrained fits are ill conditioned
-    if k <= d:
+    if n_rule == "knn" and k <= d:
         tol = 0
 
     for i in range(n):
