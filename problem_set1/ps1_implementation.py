@@ -25,8 +25,10 @@ class PCA:
         self.C = np.average(Xtrain, axis=0)
         cov = np.cov(Xtrain.T)
         self.D, self.U = np.linalg.eig(cov)
-        self.D[::-1].sort()
- 
+        arrinds = self.D.argsort()
+        self.D = self.D[arrinds[::-1]]
+        self.U = self.U[arrinds[::-1]]
+
         '''cov = np.cov(Xtrain.T)
         self.D, self.U = la.eigh(cov)
 
