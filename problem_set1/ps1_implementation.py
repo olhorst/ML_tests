@@ -23,7 +23,11 @@ sys.setrecursionlimit(10**6)
 class PCA:
     def __init__(self, Xtrain):
         self.C = np.average(Xtrain, axis=0)
-        self.D, self.U = la.eig(self.C)
+        cov = np.cov(Xtrain.T)
+        self.D, self.U = la.eigh(cov)
+
+        self.D = np.flip(self.D)
+        self.U = np.flip(self.U, axis=1)
 
     def project(self, Xtest, m):
         Z = (Xtest - self.C) @ self.U[:, :m]
