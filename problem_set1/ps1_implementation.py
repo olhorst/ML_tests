@@ -26,15 +26,12 @@ class PCA:
         cov = np.cov(Xtrain.T)
         self.D, self.U = np.linalg.eig(cov)
         self.D[::-1].sort()
-<<<<<<< HEAD
-=======
-
+ 
         '''cov = np.cov(Xtrain.T)
         self.D, self.U = la.eigh(cov)
 
         self.D = np.flip(self.D)
         self.U = np.flip(self.U, axis=1)'''
->>>>>>> 27c4261a6356960ff876b8b7d6925c9b2bcc005b
 
     def project(self, Xtest, m):
         Z = (Xtest - self.C) @ self.U[:, :m]
