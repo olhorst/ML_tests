@@ -150,7 +150,6 @@ def check_connected(indices):
             ind = ind.compressed()
         checked[ind] = 1
 
-    print(checked)
     return np.all(checked == 1)
 
 
