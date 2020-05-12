@@ -57,6 +57,28 @@ def knn(X, k):
 
     return indices[1:k + 1, :], distances[1:k + 1, :]
 
+def eps_ball(X, eps):
+    # Calculate the euclidean distances
+    distances = -2 * X @ X.T + np.sum(X ** 2, axis=1) + np.sum(X ** 2, axis=1)[:, np.newaxis]
+
+    # Avoid negative numbers due to numeric error
+    distances[distances < 0] = 0
+
+    distances = np.sqrt(distances)
+
+    mask = np.where(distances < eps, 0, 1)
+
+    # distances = np.where(distances < eps, distances, float('inf'))
+
+    indices = np.argsort(distances, 0)
+    mask = np.take_along_axis(mask, indices, 0)
+    distances = np.sort(distances, 0)
+
+    indices = np.ma.masked_array(indices, mask=mask)
+    distances = np.ma.masked_array(distances, mask=mask)
+
+    return indices[1:], distances[1:]
+
 
 def gammaidx(X, k):
     """
