@@ -141,7 +141,7 @@ def auc(y_true, y_pred, plot=False):
     return c
 
 
-def checkConnected(indices):
+def check_connected(indices):
     n = indices.shape[1]
     checked = np.zeros(n)
     for i in range(n):
@@ -152,6 +152,7 @@ def checkConnected(indices):
 
     print(checked)
     return np.all(checked == 1)
+
 
 def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     """
@@ -173,7 +174,7 @@ def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     else:
         raise ValueError('Only knn and eps-ball are excepted as n_rule')
 
-    if not checkConnected(indices):
+    if not check_connected(indices):
         raise ValueError('The resulted graph is not connected')
 
     print('Step 2: local reconstruction weights')
