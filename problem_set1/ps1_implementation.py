@@ -141,11 +141,66 @@ def auc(y_true, y_pred, plot=False):
     return c
 
 
-def lle(X, m, n_rule, param, tol=1e-2):
-    ''' your header here!
-    '''
+def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
+    """
+
+    @param X: data points (nxd)
+    @param m: dimension of the embedding
+    @param n_rule: method used for the neighbour graph creation. options: 'knn', 'eps-ball'
+    @param k: number of neighbors
+    @param tol: regularization parameter for the local covariance matrices
+    @param epsilon:
+    @return:
+    """
     print('Step 1: Finding the nearest neighbours by rule ' + n_rule)
-    
+
+    if n_rule == "knn":
+        indices, distances = knn(X, k)
+    elif n_rule == 'eps-ball':
+        indices, distances = eps_ball(X, epsilon)
+    else:
+        raise ValueError('Only knn and eps-ball are excepted as n_rule')
+
     print('Step 2: local reconstruction weights')
-    
+
+    # Initialize matrix of reconstruction weights
+    n, d = X.shape
+    W = np.zeros([n, n])
+
+    # regularlizer only in case constrained fits are ill conditioned
+    if k <= d:
+        tol = 0
+
+    for i in range(n):
+        if n_rule == 'eps-ball':
+            ind = indices[:, i].compressed()
+            k = indices[:, i].count()
+        else:
+            ind = indices[:, i]
+
+        # shift ith pt to origin
+        z = X[ind] - np.tile(X[i], (k, 1))
+
+        # local covariance
+        C = z @ z.T
+
+        # regularlization (K>D)
+        C = C + np.eye(k) * tol * np.trace(C)
+
+        # solve Cw=1
+        w = np.squeeze(la.solve(C, np.ones((k, 1))))
+
+        # enforce sum(w)=1
+        w = w / np.sum(w)
+        W[i, ind] = np.squeeze(w)
+
+
     print('Step 3: compute embedding')
+
+    M = np.eye(n) - W
+    M = M.T @ M
+
+    D, V = la.eigh(M)
+    Y = V[1:m+1, :].T
+
+    return Y
