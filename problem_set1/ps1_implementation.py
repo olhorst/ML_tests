@@ -16,6 +16,7 @@ Write your implementations in the given functions stubs!
 import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
+import warnings
 
 import sys
 sys.setrecursionlimit(10**6)
@@ -23,6 +24,8 @@ sys.setrecursionlimit(10**6)
 class PCA:
     def __init__(self, Xtrain):
         self.C = np.average(Xtrain, axis=0)
+        print(self.C)
+        print(Xtrain)
         self.D, self.U = la.eig(self.C)
 
     def project(self, Xtest, m):
@@ -34,10 +37,6 @@ class PCA:
         Y = self.C + Z @ self.U[:, :m].T
         return Y
 
-
-def pca(X, m):
-    ''' your header here!
-    '''
 
 
 def knn(X, k):
@@ -180,8 +179,15 @@ def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     print('Step 1: Finding the nearest neighbours by rule ' + n_rule)
 
     if n_rule == "knn":
+        if(k is None):
+            raise ValueError('k must be set if rule "knn" is chosen')
+        elif(k>len(X)):
+            raise ValueError('k may not exceed the total amount of datapoints, which is ' + len(X))
         indices, distances = knn(X, k)
+
     elif n_rule == 'eps-ball':
+        if(epsilon is None):
+            raise ValueError('epsilon must be set if rule "eps-ball" is chosen')
         indices, distances = eps_ball(X, epsilon)
     else:
         raise ValueError('Only knn and eps-ball are excepted as n_rule')
