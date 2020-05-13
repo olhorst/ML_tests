@@ -24,7 +24,10 @@ class PCA:
     def __init__(self, Xtrain):
         self.C = np.average(Xtrain, axis=0)
         cov = np.cov(Xtrain.T)
+
         self.D, self.U = la.eig(cov)
+        self.D = self.D.real
+        
         arrinds = self.D.argsort()
         self.D = self.D[arrinds[::-1]]
         self.U = self.U[:, arrinds[::-1]]
