@@ -16,9 +16,9 @@ Write your implementations in the given functions stubs!
 import numpy as np
 import scipy.linalg as la
 import matplotlib.pyplot as plt
+from scipy.sparse import csgraph
 
 import sys
-sys.setrecursionlimit(10**6)
 
 class PCA:
     def __init__(self, Xtrain):
@@ -146,29 +146,6 @@ def auc(y_true, y_pred, plot=False):
     return c
 
 
-def traverse(u, visited, indices):
-    visited[u] = 1
-    ind = indices[:, u]
-    if np.ma.is_masked(ind):
-        ind = ind.compressed()
-    for v in ind:
-        if not visited[v]:
-            traverse(v, visited, indices)
-
-
-def is_connected(indices):
-    n = indices.shape[1]
-    visited = np.zeros(n)
-    for i in range(n):
-        visited = np.zeros(n)
-        traverse(i, visited, indices)
-        if not np.all(visited == 1):
-            return False
-        else:
-            return True
-
-
-
 def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     """
 
@@ -196,7 +173,13 @@ def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     else:
         raise ValueError('Only knn and eps-ball are excepted as n_rule')
 
-    if not is_connected(indices):
+    adj = np.zeros([n, n])
+    for i in range(n):
+        adj[i, indices[:, i]] = 1
+
+    connected_components, component_indices = csgraph.connected_components(adj)
+
+    if not connected_components == 1:
         raise ValueError('The resulted graph is not connected')
 
     print('Step 2: local reconstruction weights')
