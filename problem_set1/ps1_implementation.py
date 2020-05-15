@@ -239,6 +239,6 @@ def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     M = M.T @ M
 
     D, V = la.eigh(M)
-    Y = V[1:m+1, :].T
+    Y = V[:, 1:m + 1]
 
     return Y
