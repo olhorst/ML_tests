@@ -158,6 +158,7 @@ def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     @return:
     """
     print('Step 1: Finding the nearest neighbours by rule ' + n_rule)
+    n, d = X.shape
 
     if n_rule == "knn":
         if(k is None):
@@ -185,7 +186,7 @@ def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     print('Step 2: local reconstruction weights')
 
     # Initialize matrix of reconstruction weights
-    n, d = X.shape
+
     W = np.zeros([n, n])
 
     # regularlizer only in case constrained fits are ill conditioned
