@@ -1,7 +1,8 @@
 """ sheet1_implementation.py
 
 PUT YOUR NAME HERE:
-<FIRST_NAME><LAST_NAME>
+Benjamin Berta
+Oliver Horst
 
 
 Write the functions
@@ -15,10 +16,8 @@ Write your implementations in the given functions stubs!
 """
 import numpy as np
 import scipy.linalg as la
-import matplotlib.pyplot as plt
 from scipy.sparse import csgraph
-
-import sys
+import matplotlib.pyplot as plt
 
 class PCA:
     def __init__(self, Xtrain):
@@ -27,7 +26,7 @@ class PCA:
 
         self.D, self.U = la.eig(cov)
         self.D = self.D.real
-        
+
         arrinds = self.D.argsort()
         self.D = self.D[arrinds[::-1]]
         self.U = self.U[:, arrinds[::-1]]
@@ -42,16 +41,24 @@ class PCA:
         return Y
 
 
+def calculate_distance(X):
+    """
+    Gives back the distance matrix of X
+    @param X: data
+    @return: distance matrix
+    """
+    return -2 * X @ X.T + np.sum(X ** 2, axis=1) + np.sum(X ** 2, axis=1)[:, np.newaxis]
+
 
 def knn(X, k):
     """
-    source: https://nycdatascience.com/blog/student-works/machine-learning/knn-classifier-from-scratch-numpy-only/
-    @param X:
-    @param k:
-    @return:
+    K-nearest neighbours algorithm
+    @param X: data
+    @param k: number of neighbours
+    @return: indices and distances of the k nearest neighbours
     """
     # Calculate the euclidean distances
-    distances = -2 * X @ X.T + np.sum(X ** 2, axis=1) + np.sum(X ** 2, axis=1)[:, np.newaxis]
+    distances = calculate_distance(X)
 
     # Avoid negative numbers due to numeric error
     distances[distances < 0] = 0
@@ -62,18 +69,24 @@ def knn(X, k):
 
     return indices[1:k + 1, :], distances[1:k + 1, :]
 
+
 def eps_ball(X, eps):
+    """
+    Returns neighbours that are inside an aps-radius sphere of the point
+    @param X: data
+    @param eps: radius of the sphere that is used for the neighbourhood search
+    @return: masked indices and distances of the resulting neighbours
+    """
     # Calculate the euclidean distances
-    distances = -2 * X @ X.T + np.sum(X ** 2, axis=1) + np.sum(X ** 2, axis=1)[:, np.newaxis]
+    distances = calculate_distance(X)
 
     # Avoid negative numbers due to numeric error
     distances[distances < 0] = 0
 
     distances = np.sqrt(distances)
 
+    # Create mask
     mask = np.where(distances < eps, 0, 1)
-
-    # distances = np.where(distances < eps, distances, float('inf'))
 
     indices = np.argsort(distances, 0)
     mask = np.take_along_axis(mask, indices, 0)
@@ -87,12 +100,12 @@ def eps_ball(X, eps):
 
 def gammaidx(X, k):
     """
-
-    @param X:
-    @param k:
-    @return:
+    Returns the gamma value for the points in their k-neighbourhood
+    @param X: data
+    @param k: number of neighbours used in the knn search
+    @return: gamma index
     """
-    indices, distances = knn(X, k)
+    _, distances = knn(X, k)
 
     y = np.average(distances, axis=0)
 
@@ -103,16 +116,15 @@ def auc(y_true, y_pred, plot=False):
     """
     Area Under Curve, also called "c-statistic" ("concordance statistic")
 
-    True Positive Rate (TPR)
-    False Positive Rate (FPR)
-    
     @param y_true: true labels, {-1,1}^n
     @param y_pred: predicted value, [-1,1]
     @param plot: boolean, when true plot the ROC curve
-    @return:
+    @return: Area Under Curve
     """
+    # Convert data to {0, 1} format
     y_true = np.where(y_true == 1.0, 1, 0)
 
+    # sort values in descending order
     indices_desc = np.argsort(y_pred)[::-1]
     y_true = y_true[indices_desc]
     y_pred = y_pred[indices_desc]
@@ -121,7 +133,7 @@ def auc(y_true, y_pred, plot=False):
     tps = np.cumsum(y_true)
     fps = 1 + np.arange(tps.size) - tps
 
-    # Making sure that the firs value is (0,0)
+    # Making sure that the first value is (0,0)
     tps = np.r_[0, tps]
     fps = np.r_[0, fps]
 
@@ -130,6 +142,7 @@ def auc(y_true, y_pred, plot=False):
     tpr = tps / tps[-1]
 
     # AUC is the area under the ROC curve
+    # Using trapezoidal integration
     c = np.trapz(tpr, fpr)
 
     if plot:
@@ -154,21 +167,21 @@ def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     @param n_rule: method used for the neighbour graph creation. options: 'knn', 'eps-ball'
     @param k: number of neighbors
     @param tol: regularization parameter for the local covariance matrices
-    @param epsilon:
-    @return:
+    @param epsilon: radius of the sphere that is used for the neighbourhood search in eps-ball
+    @return: embedding in m-dimensions
     """
     print('Step 1: Finding the nearest neighbours by rule ' + n_rule)
     n, d = X.shape
 
     if n_rule == "knn":
-        if(k is None):
+        if k is None:
             raise ValueError('k must be set if rule "knn" is chosen')
-        elif(k>len(X)):
+        elif k > len(X):
             raise ValueError('k may not exceed the total amount of datapoints, which is ' + len(X))
         indices, distances = knn(X, k)
 
     elif n_rule == 'eps-ball':
-        if(epsilon is None):
+        if epsilon is None:
             raise ValueError('epsilon must be set if rule "eps-ball" is chosen')
         indices, distances = eps_ball(X, epsilon)
     else:
@@ -186,7 +199,6 @@ def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
     print('Step 2: local reconstruction weights')
 
     # Initialize matrix of reconstruction weights
-
     W = np.zeros([n, n])
 
     # regularlizer only in case constrained fits are ill conditioned
@@ -215,7 +227,6 @@ def lle(X, m, n_rule, k=None, tol=1e-3, epsilon=None):
         # enforce sum(w)=1
         w = w / np.sum(w)
         W[i, ind] = np.squeeze(w)
-
 
     print('Step 3: compute embedding')
 
