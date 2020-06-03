@@ -19,12 +19,15 @@ Write the functions
 
 from __future__ import division  # always use float division
 import numpy as np
+import numpy.linalg as la
 from numpy.random import default_rng
 from scipy.spatial.distance import cdist  # fast distance matrices
 from scipy.cluster.hierarchy import dendrogram  # you can use this
+from scipy.special import logsumexp
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from matplotlib.lines import Line2D  # for when you create your own dendrogram
+from scipy import stats
 
 def kmeans(X, k, max_iter=100):
     """ Performs k-means clustering
@@ -94,12 +97,18 @@ def norm_pdf(X, mu, C):
     Output:
     pdf value for each data point
     """
-    n, d = X.shape
-    inv = np.linalg.solve(C, (X - mu).T).T
-    prod = np.einsum('ij,ij->i', inv, inv)
+    def log_pdf(X, mu, C):
+        n, d = X.shape
+        inv = la.solve(C, (X - mu).T).T
+        maha = np.einsum('ij,ij->i', inv, inv)
+        # Directly calculates log(det(C)), bypassing the numerical issues
+        # of calculating the determinant of C, which is very close to zero
+        _, logdet = la.slogdet(C)
+        log2pi = np.log(2 * np.pi)
+        return -0.5 * (d * log2pi + logdet + maha)
 
-    y = 1. / (np.sqrt((2 * np.pi) ** d * np.linalg.det(C))) * np.exp(-(prod / 2))
-    return y
+    logpdf = log_pdf(X, mu, C)
+    return np.exp(logpdf), logpdf
 
 
 def em_gmm(X, k, max_iter=100, init_kmeans=False, eps=1e-3):
@@ -121,39 +130,58 @@ def em_gmm(X, k, max_iter=100, init_kmeans=False, eps=1e-3):
     n, d = X.shape
     pi = np.ones(k)
     pi = pi / np.sum(pi)
-    sigma = np.repeat(np.eye(d)[np.newaxis], k, axis=0)
-    np.random.seed(0)
-    mu = np.random.uniform([0, 0], [4, 2], (k, d))
+    # sigma = np.repeat(np.cov(X.T)[np.newaxis], k, axis=0)
+    x_std = np.std(X)
+    sigma = np.repeat(0.3*x_std*np.eye(d)[np.newaxis], k, axis=0)
+
+    # np.random.seed(0)
+    mu = np.random.uniform(-1., 1., (k, d))
 
     if init_kmeans:
         # 1. Using k-means
-        mu, _ = kmeans(X, k)
+        mu, _, _ = kmeans(X, k)
+        sigma += np.repeat(1e-4 * np.eye(d)[np.newaxis], k, axis=0)
     elif init_sample:
         rng = default_rng()
         mu = X[rng.choice(n, size=k, replace=False)]
-
+        sigma += np.repeat(0.5 * np.eye(d)[np.newaxis], k, axis=0)
+    else:
+        sigma += np.repeat(0.5 * np.eye(d)[np.newaxis], k, axis=0)
     loglik = [0]
     r = np.zeros((n, k))
+    log_r = np.zeros((n, k))
     for i in range(max_iter):
 
         ###### Step 1 - Expectation
         for c, m, s, p in zip(range(k), mu, sigma, pi):
-            r[:, c] = p * norm_pdf(X, m, s)
+            _, log_pdf = norm_pdf(X, m, s)
+            log_r[:, c] = np.log(p) + log_pdf
 
-        loglik.append(-np.sum(r))
-        r = r / np.sum(r, axis=1)[:, None]
 
+
+        r_ = np.exp(log_r)
+        loglik.append(np.log(np.sum(r_)))
+
+        log_sum = logsumexp(log_r, axis=1)[:, None]
+        log_r = log_r - log_sum
+        r = np.exp(log_r)
         ###### Step 2 - Maximizaton
         n_k = np.sum(r, axis=0)
         pi = n_k / n
-        mu = (1 / n_k * np.sum(r[:, np.newaxis] * X[:, :, None], axis=0)).T
+
+        ex_mu = mu.copy()
+        mu = ((r.T @ X).T / n_k).T
         X_mu = X[:, np.newaxis] - mu[np.newaxis]
 
-        outer_prod = r[:, :, np.newaxis, np.newaxis] * np.matmul(X_mu[:, :, :, np.newaxis], X_mu[:, :, np.newaxis])
-        sigma = 1 / n_k[:, None, None] * np.sum(outer_prod.swapaxes(0, 1), axis=1)
+        # outer_prod = r[:, :, np.newaxis, np.newaxis] * np.matmul(X_mu[:, :, :, np.newaxis], X_mu[:, :, np.newaxis])
+        # sigma = 1 / n_k[:, None, None] * np.sum((outer_prod).swapaxes(0, 1), axis=1)
 
-        tol = np.repeat(1e-6 * np.eye(d)[np.newaxis], k, axis=0)
-        sigma += tol
+        for j in range(k):
+            r_diag = np.diag(r[:, j])
+            sigma_k = (X_mu[:, j].T @ r_diag)
+            sigma[j] = (sigma_k @ X_mu[:, j]) / n_k[j]
+
+        sigma += np.repeat(1e-3 * np.eye(d)[np.newaxis], k, axis=0)
         if np.isclose(loglik[i], loglik[i - 1]):
             break
 
