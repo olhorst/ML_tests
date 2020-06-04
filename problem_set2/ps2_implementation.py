@@ -111,7 +111,15 @@ def norm_pdf(X, mu, C):
     return np.exp(logpdf), logpdf
 
 
-def em_gmm(X, k, max_iter=100, init_kmeans=False, eps=1e-3):
+def plot_usps(mu):
+    fig, ax = plt.subplots(2, 5)
+    fig.set_size_inches(10, 3)
+    for i in range(10):
+        ax[i // 5, i % 5].imshow(np.reshape(mu[i], [16, 16]))
+    plt.show()
+
+
+def em_gmm(X, k, max_iter=100, init_kmeans=True, tol=1e-5, plot_solution=False):
     """ Implements EM for Gaussian Mixture Models
 
     Input:
@@ -132,7 +140,7 @@ def em_gmm(X, k, max_iter=100, init_kmeans=False, eps=1e-3):
     pi = pi / np.sum(pi)
     # sigma = np.repeat(np.cov(X.T)[np.newaxis], k, axis=0)
     x_std = np.std(X)
-    sigma = np.repeat(0.3*x_std*np.eye(d)[np.newaxis], k, axis=0)
+    sigma = np.repeat(x_std*np.eye(d)[np.newaxis], k, axis=0)
 
     # np.random.seed(0)
     mu = np.random.uniform(-1., 1., (k, d))
@@ -144,12 +152,14 @@ def em_gmm(X, k, max_iter=100, init_kmeans=False, eps=1e-3):
     elif init_sample:
         rng = default_rng()
         mu = X[rng.choice(n, size=k, replace=False)]
-        sigma += np.repeat(0.5 * np.eye(d)[np.newaxis], k, axis=0)
-    else:
-        sigma += np.repeat(0.5 * np.eye(d)[np.newaxis], k, axis=0)
+        # sigma += np.repeat(0.5 * np.eye(d)[np.newaxis], k, axis=0)
+    # else:
+        # sigma += np.repeat(0.5 * np.eye(d)[np.newaxis], k, axis=0)
     loglik = [0]
     r = np.zeros((n, k))
     log_r = np.zeros((n, k))
+    if plot_solution:
+        plot_gmm_solution(X, mu, sigma)
     for i in range(max_iter):
 
         ###### Step 1 - Expectation
@@ -182,6 +192,8 @@ def em_gmm(X, k, max_iter=100, init_kmeans=False, eps=1e-3):
             sigma[j] = (sigma_k @ X_mu[:, j]) / n_k[j]
 
         sigma += np.repeat(1e-3 * np.eye(d)[np.newaxis], k, axis=0)
+        if plot_solution:
+            plot_gmm_solution(X, mu, sigma)
         if np.isclose(loglik[i], loglik[i - 1]):
             break
 
