@@ -217,13 +217,27 @@ def plot_gmm_solution(X, mu, sigma):
 
     for i in range(k):
         lambda_, v = np.linalg.eig(sigma[i])
-        ellipse = Ellipse(xy=(mu[i, 0], mu[i, 1]),
-                          width=lambda_[0] * 2,
-                          height=lambda_[1] * 2,
+        ellipse2 = Ellipse(xy=(mu[i, 0], mu[i, 1]),
+                          width=lambda_[0] * 4,
+                          height=lambda_[1] * 4,
                           angle=np.rad2deg(np.arccos(v[0, 0])),
                           facecolor='none',
                           edgecolor='red')
-        ax.add_artist(ellipse)
+        ellipse3 = Ellipse(xy=(mu[i, 0], mu[i, 1]),
+                          width=lambda_[0] * 8,
+                          height=lambda_[1] * 8,
+                          angle=np.rad2deg(np.arccos(v[0, 0])),
+                          facecolor='none',
+                          edgecolor='red')
+        ellipse4 = Ellipse(xy=(mu[i, 0], mu[i, 1]),
+                          width=lambda_[0] * 16,
+                          height=lambda_[1] * 16,
+                          angle=np.rad2deg(np.arccos(v[0, 0])),
+                          facecolor='none',
+                          edgecolor='red')
+        ax.add_artist(ellipse2)
+        ax.add_artist(ellipse3)
+        ax.add_artist(ellipse4)
     plt.show()
 
     pass
