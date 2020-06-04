@@ -100,9 +100,9 @@ def norm_pdf(X, mu, C):
     def log_pdf(X, mu, C):
         n, d = X.shape
         inv = la.solve(C, (X - mu).T).T
-        maha = np.einsum('ij,ij->i', inv, inv)
+        maha = np.einsum('ij,ij->i', (X-mu), inv)
         # Directly calculates log(det(C)), bypassing the numerical issues
-        # of calculating the determinant of C, which is very close to zero
+        # of calculating the determinant of C, which can be very close to zero
         _, logdet = la.slogdet(C)
         log2pi = np.log(2 * np.pi)
         return -0.5 * (d * log2pi + logdet + maha)
@@ -140,11 +140,12 @@ def em_gmm(X, k, max_iter=100, init_kmeans=True, tol=1e-5, plot_solution=False):
     pi = pi / np.sum(pi)
     # sigma = np.repeat(np.cov(X.T)[np.newaxis], k, axis=0)
     x_std = np.std(X)
-    sigma = np.repeat(x_std*np.eye(d)[np.newaxis], k, axis=0)
+    sigma = np.repeat(0.6 * x_std*np.eye(d)[np.newaxis], k, axis=0)
 
     # np.random.seed(0)
-    mu = np.random.uniform(-1., 1., (k, d))
-
+    min_ = np.min(X)
+    max_ = np.max(X)
+    mu = np.random.uniform(min_, max_, (k, d))
     if init_kmeans:
         # 1. Using k-means
         mu, _, _ = kmeans(X, k)
@@ -152,9 +153,9 @@ def em_gmm(X, k, max_iter=100, init_kmeans=True, tol=1e-5, plot_solution=False):
     elif init_sample:
         rng = default_rng()
         mu = X[rng.choice(n, size=k, replace=False)]
-        # sigma += np.repeat(0.5 * np.eye(d)[np.newaxis], k, axis=0)
-    # else:
-        # sigma += np.repeat(0.5 * np.eye(d)[np.newaxis], k, axis=0)
+        sigma += np.repeat(0.5 * np.eye(d)[np.newaxis], k, axis=0)
+    else:
+        sigma += np.repeat(0.5 * np.eye(d)[np.newaxis], k, axis=0)
     loglik = [0]
     r = np.zeros((n, k))
     log_r = np.zeros((n, k))
