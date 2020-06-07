@@ -95,12 +95,14 @@ def norm_pdf(X, mu, C):
     C: covariance matrix
 
     Output:
-    pdf value for each data point
+    pdf: pdf value for each data point
+    logpdf: log pdf value for each data point
     """
+
     def log_pdf(X, mu, C):
         n, d = X.shape
         inv = la.solve(C, (X - mu).T).T
-        maha = np.einsum('ij,ij->i', (X-mu), inv)
+        maha = np.einsum('ij,ij->i', (X - mu), inv)
         # Directly calculates log(det(C)), bypassing the numerical issues
         # of calculating the determinant of C, which can be very close to zero
         _, logdet = la.slogdet(C)
@@ -119,7 +121,7 @@ def plot_usps(mu):
     plt.show()
 
 
-def em_gmm(X, k, max_iter=100, init_kmeans=True, tol=1e-5, plot_solution=False):
+def em_gmm(X, k, max_iter=100, init_kmeans=False, tol=1e-4, plot_solution=False):
     """ Implements EM for Gaussian Mixture Models
 
     Input:
@@ -127,74 +129,78 @@ def em_gmm(X, k, max_iter=100, init_kmeans=True, tol=1e-5, plot_solution=False):
     k: number of clusters
     max_iter: maximum number of iterations
     init_kmeans: whether kmeans should be used for initialisation
-    eps: when log likelihood difference is smaller than eps, terminate loop
+    tol: regularization paramter
+    plot_solution: if True, plots intermidiate solutions
 
     Output:
     pi: k long vector of priors
     mu: (k x d) matrix with each cluster center in one column
     sigma: list of d x d covariance matrices
+    loglik:: Log likelihood
     """
-    init_sample = False
+    init_sample = True
     n, d = X.shape
     pi = np.ones(k)
     pi = pi / np.sum(pi)
-    # sigma = np.repeat(np.cov(X.T)[np.newaxis], k, axis=0)
+    mu = np.random.uniform(np.min(X), np.max(X), (k, d))
     x_std = np.std(X)
-    sigma = np.repeat(0.6 * x_std*np.eye(d)[np.newaxis], k, axis=0)
+    sigma = np.repeat(0.6 * x_std * np.eye(d)[np.newaxis], k, axis=0)
 
-    # np.random.seed(0)
-    min_ = np.min(X)
-    max_ = np.max(X)
-    mu = np.random.uniform(min_, max_, (k, d))
     if init_kmeans:
         # 1. Using k-means
         mu, _, _ = kmeans(X, k)
-        sigma += np.repeat(1e-4 * np.eye(d)[np.newaxis], k, axis=0)
+        sigma += np.repeat(tol * np.eye(d)[np.newaxis], k, axis=0)
     elif init_sample:
         rng = default_rng()
         mu = X[rng.choice(n, size=k, replace=False)]
         sigma += np.repeat(0.5 * np.eye(d)[np.newaxis], k, axis=0)
     else:
         sigma += np.repeat(0.5 * np.eye(d)[np.newaxis], k, axis=0)
+
     loglik = [0]
-    r = np.zeros((n, k))
+
     log_r = np.zeros((n, k))
     if plot_solution:
         plot_gmm_solution(X, mu, sigma)
     for i in range(max_iter):
 
         ###### Step 1 - Expectation
+        log_pdf = np.zeros([k, n])
+
+        # Calculating the log responsibilities
+        # Note: calculating with logarithms is much safer due to numeric
         for c, m, s, p in zip(range(k), mu, sigma, pi):
-            _, log_pdf = norm_pdf(X, m, s)
-            log_r[:, c] = np.log(p) + log_pdf
+            pdf, log_pdf[c] = norm_pdf(X, m, s)
+            log_r[:, c] = np.log(p) + log_pdf[c]
 
-
-
-        r_ = np.exp(log_r)
-        loglik.append(np.log(np.sum(r_)))
+        loglik.append(np.log(np.sum(np.exp(log_r))))
 
         log_sum = logsumexp(log_r, axis=1)[:, None]
         log_r = log_r - log_sum
         r = np.exp(log_r)
+
         ###### Step 2 - Maximizaton
         n_k = np.sum(r, axis=0)
+
+        # Calculating the component weights
         pi = n_k / n
 
-        ex_mu = mu.copy()
+        # Calculating the components means
         mu = ((r.T @ X).T / n_k).T
         X_mu = X[:, np.newaxis] - mu[np.newaxis]
 
-        # outer_prod = r[:, :, np.newaxis, np.newaxis] * np.matmul(X_mu[:, :, :, np.newaxis], X_mu[:, :, np.newaxis])
-        # sigma = 1 / n_k[:, None, None] * np.sum((outer_prod).swapaxes(0, 1), axis=1)
-
+        # Calculating the component covariances
         for j in range(k):
             r_diag = np.diag(r[:, j])
             sigma_k = (X_mu[:, j].T @ r_diag)
             sigma[j] = (sigma_k @ X_mu[:, j]) / n_k[j]
 
-        sigma += np.repeat(1e-3 * np.eye(d)[np.newaxis], k, axis=0)
+        sigma += np.repeat(tol * np.eye(d)[np.newaxis], k, axis=0)
+
         if plot_solution:
             plot_gmm_solution(X, mu, sigma)
+
+        # Terminate if the log likelihood converged to an optimum
         if np.isclose(loglik[i], loglik[i - 1]):
             break
 
@@ -217,27 +223,30 @@ def plot_gmm_solution(X, mu, sigma):
 
     for i in range(k):
         lambda_, v = np.linalg.eig(sigma[i])
+        ellipse1 = Ellipse(xy=(mu[i, 0], mu[i, 1]),
+                           width=lambda_[0] * 4,
+                           height=lambda_[1] * 4,
+                           angle=np.rad2deg(np.arccos(v[0, 0])),
+                           facecolor='none',
+                           edgecolor='red')
         ellipse2 = Ellipse(xy=(mu[i, 0], mu[i, 1]),
-                          width=lambda_[0] * 4,
-                          height=lambda_[1] * 4,
-                          angle=np.rad2deg(np.arccos(v[0, 0])),
-                          facecolor='none',
-                          edgecolor='red')
-        ellipse3 = Ellipse(xy=(mu[i, 0], mu[i, 1]),
-                          width=lambda_[0] * 8,
-                          height=lambda_[1] * 8,
-                          angle=np.rad2deg(np.arccos(v[0, 0])),
-                          facecolor='none',
-                          edgecolor='red')
-        ellipse4 = Ellipse(xy=(mu[i, 0], mu[i, 1]),
-                          width=lambda_[0] * 16,
-                          height=lambda_[1] * 16,
-                          angle=np.rad2deg(np.arccos(v[0, 0])),
-                          facecolor='none',
-                          edgecolor='red')
+                           width=lambda_[0] * 8,
+                           height=lambda_[1] * 8,
+                           angle=np.rad2deg(np.arccos(v[0, 0])),
+                           facecolor='none',
+                           edgecolor='red')
+        ax.add_artist(ellipse1)
         ax.add_artist(ellipse2)
-        ax.add_artist(ellipse3)
-        ax.add_artist(ellipse4)
     plt.show()
 
+
+if __name__ == '__main__':
+    X = np.array([[0., 1., 0.5, 3., 3.25, 3.5, 3., 3.25, 3.5],
+                  [0., 0., 0.5, 0., 0.5, 0., 2., 2.5, 2.]]).T
+    gmm = GMM(n_components=3).fit(X)
+    labels = gmm.predict(X)
+    mus = gmm.means_
+    # plt.scatter(X[:, 0], X[:, 1], c=labels, s=40, cmap='viridis')
+    # plt.show()
+    em_gmm(X, k=3)
     pass
