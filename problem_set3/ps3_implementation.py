@@ -27,15 +27,76 @@ def zero_one_loss(y_true, y_pred):
 
 
 def mean_absolute_error(y_true, y_pred):
-    ''' your code here '''
+    return np.mean(np.abs(y_true - y_pred))
 
 
-def cv(X, y, method, params, loss_function=zero_one_loss, nfolds=10, nrepetitions=5):
+# https://stackoverflow.com/questions/5228158/cartesian-product-of-a-dictionary-of-lists
+def product_dict(dicts):
+    return (dict(zip(dicts, x)) for x in it.product(*dicts.values()))
+
+
+def cv(X, y, method, params, loss_function=mean_absolute_error, nfolds=10, nrepetitions=5):
     ''' your header here!
     '''
-    return method
+    x=y-1
+    n, d = X.shape
 
-  
+    best_method = None
+    best_err = np.float('inf')
+    err_arr = []
+    configs = product_dict(params)
+    configs, configs_ = it.tee(configs)
+    n_configs = sum(1 for x in configs_)
+    avg_time = 0.0
+    c = 0
+    for conf in configs:
+        t_start = time.time()
+        for i in range(nrepetitions):
+            ind = np.arange(0, n)
+            np.random.shuffle(ind)
+
+            for j in range(nfolds):
+
+                div, mod = divmod(n, nfolds)
+                val_ind = [x for x in range(j * div + min(j, mod), (j + 1) * div + min(j + 1, mod))]
+                val_ind = ind[val_ind]
+
+                X_ = np.delete(X, val_ind)
+                y_ = np.delete(y, val_ind)
+                X_val = X[val_ind]
+                y_val = y[val_ind]
+
+                # print('Curent configuration: ' + str(conf))
+                meth = method(**conf)
+                meth.fit(X_, y_, **conf)
+                y_pred = meth.predict(X_val)
+
+                err = loss_function(y_val, y_pred)
+                if n_configs != 1 and err < best_err:
+                    meth.cv_loss = err
+                    best_method = meth
+                    best_err = err
+                else:
+                    err_arr.append(err)
+
+        t_end = time.time()
+        c += 1
+        if c > 1:
+            avg_time = (c-1)/c*avg_time + (t_end-t_start)/c
+        else:
+            avg_time = t_end-t_start
+        print('time remaining: ' + str(int((n_configs - c)*avg_time)) + 's')
+
+        if n_configs != 1:
+            best_method.fit(X, y)
+        else:
+            best_method = method(**conf)
+            best_method.fit(X, y, **conf)
+            best_method.avg_loss = np.average(err_arr)
+
+    return best_method
+
+
 class krr():
     ''' your header here!
     '''
