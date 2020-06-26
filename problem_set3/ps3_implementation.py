@@ -39,32 +39,56 @@ def cv(X, y, method, params, loss_function=zero_one_loss, nfolds=10, nrepetition
 class krr():
     ''' your header here!
     '''
-    def __init__(self, kernel='linear', kernelparameter=3, regularization=1):
+    def __init__(self, kernel='linear', kernelparameter=1, regularization=1):
         self.kernel = kernel
         self.kernelparameter = kernelparameter
         self.regularization = regularization
 
-    def getTrainK(self, X, kernel, kernelparam=3.):
+    def getTrainK(self, X, kernel, kernelparam=1.):
         if kernel == 'linear':
             return X.T*X
         if kernel == 'polynomial':
             return (X.T*X+1)**kernelparam
         if kernel == 'gaussian':
-            return np.exp(-1 * ((X.T - X) ** 2) / 2 * kernelparam ** 2)
-            pass
-        print("Faulty Kernel")
+            return (np.exp(-1*((X.T-X)**2)/(2 * np.square(kernelparam))))
+        if kernel == 'test':
+            return (((X.T-X)**2))
+        print("dafuq")
         pass
-
-    def getPredK(self, X, kernel, kernelparam=3.):
+    
+    def getPredK(self, X, kernel, kernelparam=1.):
         if kernel == 'linear':
             return self.trainX.T*X
         if kernel == 'polynomial':
             return (self.trainX.T*X+1)**kernelparam
         if kernel == 'gaussian':
-            return np.exp(-1 * ((self.trainX.T - X) ** 2) / 2 * kernelparam ** 2)
-            pass
-        print("Faulty Kernel")
+            return (np.exp(-1*((self.trainX.T-X)**2)/(2 * np.square(kernelparam))))
+        print("dafuq")
         pass
+    
+    #efficient leave one out cross validation
+    def eloocv(self, K, Y):
+        eigval, U = la.eig(K)
+        U = U.real
+        L = np.diag(eigval).real
+        UL = np.dot(U, L)
+
+        C3 = np.logspace(-5,5,100)
+        I3 = np.eye(len(L))
+        CI3 = np.einsum('ij,k->kij', I3, C3)
+
+        CI3L = CI3 + L
+        dt = np.dtype(np.float32)
+        apinv = list(map(lambda n: la.pinv(n), CI3L))
+        apinv = np.asarray(apinv,dtype=dt) 
+
+        ULCI3 = np.einsum('lj,ijk->ilk',UL,apinv)
+        ULCI3UT = np.einsum('ikj,jl->ikl', ULCI3, U.T)
+        S = ULCI3UT
+        Sdiag = np.einsum('kii->ki', S)
+        err = np.mean(np.square((Y-np.dot(S, Y))*((1-Sdiag)**-1)), axis=1)
+        
+        return C3[np.where(err==min(err))]
 
     def fit(self, X, y, kernel=False, kernelparameter=False, regularization=False):
         ''' your header here!
@@ -76,7 +100,10 @@ class krr():
         if regularization is not False:
             self.regularization = regularization
         self.trainX = X
-        self.alpha = np.linalg.inv(self.getTrainK(X, self.kernel, self.kernelparameter)+self.regularization*np.eye(len(X)))@y
+        self.K = self.getTrainK(X, self.kernel, self.kernelparameter)
+        if self.regularization==0:
+            self.regularization = self.eloocv(self.K, y)
+        self.alpha = np.linalg.inv(self.K+self.regularization*np.eye(len(X)))@y
         return self
 
     def predict(self, X):
