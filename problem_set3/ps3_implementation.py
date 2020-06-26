@@ -100,10 +100,58 @@ def cv(X, y, method, params, loss_function=mean_absolute_error, nfolds=10, nrepe
 class krr():
     ''' your header here!
     '''
-    def __init__(self, kernel='linear', kernelparameter=1, regularization=0):
+
+    def __init__(self, kernel='linear', kernelparameter=3, regularization=1):
         self.kernel = kernel
         self.kernelparameter = kernelparameter
         self.regularization = regularization
+        self.trainX = None
+        self.alpha = None
+
+    def getTrainK(self, X):
+        if self.kernel == 'linear':
+            return X.T * X
+        elif self.kernel == 'polynomial':
+            return (X.T * X + 1) ** self.kernelparameter
+        elif self.kernel == 'gaussian':
+            X = X.reshape(-1, 1)
+            ret = np.exp(-1 * (X.T - X) ** 2/ 2 * self.kernelparameter ** 2)
+            return ret
+        else:
+            print("Faulty Kernel")
+
+    def getPredK(self, X):
+        if self.kernel == 'linear':
+            return self.trainX.T * X
+        elif self.kernel == 'polynomial':
+            return (self.trainX.T * X + 1) ** self.kernelparameter
+        elif self.kernel == 'gaussian':
+            return np.exp(-1 * (self.trainX.T - X) ** 2 / 2 * self.kernelparameter ** 2)
+        else:
+            print("Faulty Kernel")
+
+    def eloocv(self, K, Y):
+        eigval, U = la.eig(K)
+        U = U.real
+        L = np.diag(eigval).real
+        UL = np.dot(U, L)
+
+        C3 = np.logspace(-5, 5, 100)
+        I3 = np.eye(len(L))
+        CI3 = np.einsum('ij,k->kij', I3, C3)
+
+        CI3L = CI3 + L
+        dt = np.dtype(np.float32)
+        apinv = list(map(lambda n: la.pinv(n), CI3L))
+        apinv = np.asarray(apinv, dtype=dt)
+
+        ULCI3 = np.einsum('lj,ijk->ilk', UL, apinv)
+        ULCI3UT = np.einsum('ikj,jl->ikl', ULCI3, U.T)
+        S = ULCI3UT
+        Sdiag = np.einsum('kii->ki', S)
+        err = np.mean(np.square((Y - np.dot(S, Y)) * ((1 - Sdiag) ** -1)), axis=1)
+
+        return C3[np.where(err == min(err))]
 
     def fit(self, X, y, kernel=False, kernelparameter=False, regularization=False):
         ''' your header here!
@@ -114,10 +162,13 @@ class krr():
             self.kernelparameter = kernelparameter
         if regularization is not False:
             self.regularization = regularization
+        self.trainX = X
 
-        return self
+        K = self.getTrainK(X)
+        if self.regularization == 0:
+            self.regularization = self.eloocv(K, y)
+        mat = K + self.regularization * np.eye(len(X))
+        self.alpha = np.linalg.inv(mat) @ y
 
     def predict(self, X):
-        ''' your header here!
-        '''
-        return self
+        return np.sum(self.alpha * self.getPredK(X), axis=1)
