@@ -134,12 +134,17 @@ class neural_network(Module):
         self.train = False
 
     def relu(self, X, W, b):
-        # YOUR CODE HERE!
-        pass
+        rng = np.random.RandomState()
+        mask = rng.binomial(size=W.size(1), n=1, p=1 - self.p)
+        mask = torch.tensor(mask)
+        Z = mask * (X @ W + b).clamp(0)
+        return Z
 
     def softmax(self, X, W, b):
-        # YOUR CODE HERE!
-        pass
+        Z = X @ W + b
+        Z_exp = torch.exp(Z)
+        partition = torch.sum(torch.exp(Z), dim=1, keepdim=True)
+        return Z_exp / partition
 
     def forward(self, X):
         X = torch.tensor(X, dtype=torch.float)
