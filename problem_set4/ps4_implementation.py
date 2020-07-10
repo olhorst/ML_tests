@@ -21,6 +21,9 @@ from cvxopt.solvers import qp
 from cvxopt import matrix as cvxmatrix
 import numpy as np
 import torch
+from torch.nn import Module, Parameter, ParameterList
+from torch.optim import SGD
+
 
 class svm_qp():
     """ Support Vector Machines via Quadratic Programming """
