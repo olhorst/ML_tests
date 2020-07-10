@@ -121,7 +121,7 @@ def buildKernel(X, Y=False, kernel='linear', kernelparameter=0):
 
 
 class neural_network(Module):
-    def __init__(self, layers=None, scale=.1, p=None, lr=None, lam=None):
+    def __init__(self, layers=None, scale=.1, p=None, lr=1e-3, lam=None):
         super().__init__()
         if layers is None:
             layers = [2, 100, 2]
@@ -147,16 +147,22 @@ class neural_network(Module):
         return Z_exp / partition
 
     def forward(self, X):
+
         X = torch.tensor(X, dtype=torch.float)
-        # YOUR CODE HERE!
+        for is_last_element, (w, b) in signal_last(zip(self.weights, self.biases)):
+            if not is_last_element:
+                X = self.relu(X, w, b)
+            else:
+                X = self.softmax(X, w, b)
         return X
 
     def predict(self, X):
         return self.forward(X).detach().numpy()
 
     def loss(self, ypred, ytrue):
-        # YOUR CODE HERE!
-        pass
+        m = ypred.shape[0]
+        loss = -torch.sum(ytrue * torch.log(ypred)) / m
+        return loss
 
     def fit(self, X, y, nsteps=1000, bs=100, plot=False):
         X, y = torch.tensor(X), torch.tensor(y)
