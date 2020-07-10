@@ -36,19 +36,18 @@ class svm_qp():
         self.b = None
         self.X_sv = None
         self.Y_sv = None
-    
-    def fit(self, X, Y):
 
+    def fit(self, X, Y):
         # INSERT_CODE
-        
+
         # Here you have to set the matrices as in the general QP problem
-        #P = 
-        #q = 
-        #G = 
-        #h = 
-        #A =   # hint: this has to be a row vector
-        #b =   # hint: this has to be a scalar
-        
+        P = None
+        q = None
+        G = None
+        h = None
+        A = None   # hint: this has to be a row vector
+        b = None   # hint: this has to be a scalar
+
         # this is already implemented so you don't have to
         # read throught the cvxopt manual
         alpha = np.array(qp(cvxmatrix(P, tc='d'),
@@ -58,10 +57,9 @@ class svm_qp():
                             cvxmatrix(A, tc='d'),
                             cvxmatrix(b, tc='d'))['x']).flatten()
 
-        #b = 
+        # b =
 
     def predict(self, X):
-
         # INSERT_CODE
 
         return self
@@ -70,12 +68,13 @@ class svm_qp():
 # This is already implemented for your convenience
 class svm_sklearn():
     """ SVM via scikit-learn """
+
     def __init__(self, kernel='linear', kernelparameter=1., C=1.):
         if kernel == 'gaussian':
             kernel = 'rbf'
         self.clf = sklearn.svm.SVC(C=C,
                                    kernel=kernel,
-                                   gamma=1./(1./2. * kernelparameter ** 2),
+                                   gamma=1. / (1. / 2. * kernelparameter ** 2),
                                    degree=kernelparameter,
                                    coef0=kernelparameter)
 
@@ -95,12 +94,12 @@ def plot_boundary_2d(X, y, model):
 
 def sqdistmat(X, Y=False):
     if Y is False:
-        X2 = sum(X**2, 0)[np.newaxis, :]
-        D2 = X2 + X2.T - 2*np.dot(X.T, X)
+        X2 = sum(X ** 2, 0)[np.newaxis, :]
+        D2 = X2 + X2.T - 2 * np.dot(X.T, X)
     else:
-        X2 = sum(X**2, 0)[:, np.newaxis]
-        Y2 = sum(Y**2, 0)[np.newaxis, :]
-        D2 = X2 + Y2 - 2*np.dot(X.T, Y)
+        X2 = sum(X ** 2, 0)[:, np.newaxis]
+        Y2 = sum(Y ** 2, 0)[np.newaxis, :]
+        D2 = X2 + Y2 - 2 * np.dot(X.T, Y)
     return D2
 
 
@@ -112,19 +111,22 @@ def buildKernel(X, Y=False, kernel='linear', kernelparameter=0):
         K = np.dot(X.T, Y)
     elif kernel == 'polynomial':
         K = np.dot(X.T, Y) + 1
-        K = K**kernelparameter
+        K = K ** kernelparameter
     elif kernel == 'gaussian':
         K = sqdistmat(X, Y)
-        K = np.exp(K / (-2 * kernelparameter**2))
+        K = np.exp(K / (-2 * kernelparameter ** 2))
     else:
         raise Exception('unspecified kernel')
     return K
 
+
 class neural_network(Module):
-    def __init__(self, layers=[2,100,2], scale=.1, p=None, lr=None, lam=None):
+    def __init__(self, layers=None, scale=.1, p=None, lr=None, lam=None):
         super().__init__()
-        self.weights = ParameterList([Parameter(scale*torch.randn(m, n)) for m, n in zip(layers[:-1], layers[1:])])
-        self.biases = ParameterList([Parameter(scale*torch.randn(n)) for n in layers[1:]])
+        if layers is None:
+            layers = [2, 100, 2]
+        self.weights = ParameterList([Parameter(scale * torch.randn(m, n)) for m, n in zip(layers[:-1], layers[1:])])
+        self.biases = ParameterList([Parameter(scale * torch.randn(n)) for n in layers[1:]])
 
         self.p = p
         self.lr = lr
