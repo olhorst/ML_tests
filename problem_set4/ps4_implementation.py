@@ -35,17 +35,16 @@ class svm_qp():
         self.Y_sv = None
     
     def fit(self, X, Y):
-
-        # INSERT_CODE
-        
-        # Here you have to set the matrices as in the general QP problem
-        #P = 
-        #q = 
-        #G = 
-        #h = 
-        #A =   # hint: this has to be a row vector
-        #b =   # hint: this has to be a scalar
-        
+        n_samples, n_features = X.shape
+        # Compute the Gram matrix
+        K = buildKernel(X.T, kernel=self.kernel, kernelparameter=self.kernelparameter)
+        # construct P, q, A, b, G, h matrices for CVXOPT
+        P = cvxmatrix(np.outer(Y,Y) * K) #diag instead?
+        q = cvxmatrix(np.ones(n_samples) * -1)
+        G = cvxmatrix(np.diag(np.ones(n_samples) * -1))
+        h = cvxmatrix(np.zeros(n_samples))
+        A = cvxmatrix(Y, (1,n_samples))
+        b = cvxmatrix(0.0)
         # this is already implemented so you don't have to
         # read throught the cvxopt manual
         alpha = np.array(qp(cvxmatrix(P, tc='d'),
@@ -54,14 +53,32 @@ class svm_qp():
                             cvxmatrix(h, tc='d'),
                             cvxmatrix(A, tc='d'),
                             cvxmatrix(b, tc='d'))['x']).flatten()
+        # Support vectors have non zero lagrange multipliers
+        mask = alpha>1e-5#np.logical_and(alpha>1e-5, alpha<self.C/len(alpha)) # some small threshold
+        self.X_sv = X[mask]
+        self.Y_sv  = Y[mask]
+        self.a = alpha[mask]
+        indices = np.arange(len(alpha))[mask]
+        b = .0
+        for n in range(len(self.a)):
+            by = self.Y_sv[n]
+            bypred = np.sum(self.a*self.Y_sv*K[indices[n], mask])
+            b = b + (by-bypred)
+        self.b = b/len(self.a)
 
-        #b = 
+    def plot(self, X, Y):
+        X_pos = X[np.where(Y==1)]
+        X_neg = X[np.where(Y==-1)]
+        plt.scatter(self.X_sv.T[0], self.X_sv.T[1], marker='+', s=300)
+        plt.scatter(X_pos.T[0], X_pos.T[1])
+        plt.scatter(X_neg.T[0], X_neg.T[1])
 
     def predict(self, X):
-
-        # INSERT_CODE
-
-        return self
+        K = buildKernel(self.X_sv.T, X.T, kernel=self.kernel, kernelparameter=self.kernelparameter)
+        ypred = np.zeros(len(X))
+        for n in range(len(X)):
+            ypred[n] = self.b + np.sum(self.a*self.Y_sv*K[:,n])
+        return ypred
 
 
 # This is already implemented for your convenience
@@ -119,7 +136,7 @@ def sqdistmat(X, Y=False):
 
 def buildKernel(X, Y=False, kernel='linear', kernelparameter=0):
     d, n = X.shape
-    if Y.isinstance(bool) and Y is False:
+    if isinstance(Y, bool) and Y is False:
         Y = X
     if kernel == 'linear':
         K = np.dot(X.T, Y)
