@@ -194,3 +194,12 @@ class neural_network(Module):
             plt.plot(range(nsteps), Aval, label='Validation acc')
             plt.legend()
             plt.show()
+
+
+def signal_last(it: Iterable[Any]) -> Iterable[Tuple[bool, Any]]:
+    iterable = iter(it)
+    ret_var = next(iterable)
+    for val in iterable:
+        yield False, ret_var
+        ret_var = val
+    yield True, ret_var
