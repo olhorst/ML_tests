@@ -138,7 +138,10 @@ class neural_network(Module):
         rng = np.random.RandomState()
         mask = rng.binomial(size=W.size(1), n=1, p=1 - self.p)
         mask = torch.tensor(mask)
-        Z = mask * (X @ W + b).clamp(0)
+        if self.train:
+            Z = mask * (X @ W + b).clamp(0)
+        else:
+            Z = (X @ W + b).clamp(0)
         return Z
 
     def softmax(self, X, W, b):
