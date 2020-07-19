@@ -14,6 +14,7 @@ Write your implementations in the given functions stubs!
 (c) Felix Brockherde, TU Berlin, 2013
     Jacob Kauffmann, TU Berlin, 2019
 """
+from typing import Iterable, Any, Tuple
 import scipy.linalg as la
 import matplotlib.pyplot as plt
 import sklearn.svm
