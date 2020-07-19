@@ -46,12 +46,12 @@ class svm_qp():
             G = cvxmatrix(np.diag(np.ones(n_samples) * -1))
             h = cvxmatrix(np.zeros(n_samples))
         else:
-            tmp1 = np.diag(np.ones(n_samples) * -1)
-            tmp2 = np.identity(n_samples)
-            G = cvxmatrix(np.vstack((tmp1, tmp2)))
-            tmp1 = np.zeros(n_samples)
-            tmp2 = np.ones(n_samples) * self.C
-            h = cvxmatrix(np.hstack((tmp1, tmp2)))
+            diag1 = np.diag(np.ones(n_samples) * -1)
+            diag2 = np.identity(n_samples)
+            G = cvxmatrix(np.vstack((diag1, diag2)))
+            zero = np.zeros(n_samples)
+            C = np.ones(n_samples) * self.C
+            h = cvxmatrix(np.hstack((zero, C)))
 
         A = cvxmatrix(Y, (1,n_samples))
         b = cvxmatrix(0.0)
