@@ -39,16 +39,26 @@ class svm_qp():
         self.Y_sv = None
 
     def fit(self, X, Y):
-        # INSERT_CODE
+        n_samples, n_features = X.shape
+        # Compute the Gram matrix
+        K = buildKernel(X.T, kernel=self.kernel, kernelparameter=self.kernelparameter)
+        # construct P, q, A, b, G, h matrices for CVXOPT
+        P = cvxmatrix(np.outer(Y, Y) * K)  # diag instead?
+        q = cvxmatrix(np.ones(n_samples) * -1)
 
-        # Here you have to set the matrices as in the general QP problem
-        P = None
-        q = None
-        G = None
-        h = None
-        A = None   # hint: this has to be a row vector
-        b = None   # hint: this has to be a scalar
+        if self.C is None:
+            G = cvxmatrix(np.diag(np.ones(n_samples) * -1))
+            h = cvxmatrix(np.zeros(n_samples))
+        else:
+            diag1 = np.diag(np.ones(n_samples) * -1)
+            diag2 = np.identity(n_samples)
+            G = cvxmatrix(np.vstack((diag1, diag2)))
+            zero = np.zeros(n_samples)
+            C = np.ones(n_samples) * self.C
+            h = cvxmatrix(np.hstack((zero, C)))
 
+        A = cvxmatrix(Y, (1, n_samples))
+        b = cvxmatrix(0.0)
         # this is already implemented so you don't have to
         # read throught the cvxopt manual
         alpha = np.array(qp(cvxmatrix(P, tc='d'),
@@ -57,13 +67,32 @@ class svm_qp():
                             cvxmatrix(h, tc='d'),
                             cvxmatrix(A, tc='d'),
                             cvxmatrix(b, tc='d'))['x']).flatten()
+        # Support vectors have non zero lagrange multipliers
+        mask = alpha > 1e-5  # some small threshold
+        self.X_sv = X[mask]
+        self.Y_sv = Y[mask]
+        self.a = alpha[mask]
+        indices = np.arange(len(alpha))[mask]
+        b = .0
+        for n in range(len(self.a)):
+            by = self.Y_sv[n]
+            bypred = np.sum(self.a * self.Y_sv * K[indices[n], mask])
+            b = b + (by - bypred)
+        self.b = b / len(self.a)
 
-        # b =
+    def plot(self, X, Y):
+        X_pos = X[np.where(Y == 1)]
+        X_neg = X[np.where(Y == -1)]
+        plt.scatter(self.X_sv.T[0], self.X_sv.T[1], marker='+', s=300)
+        plt.scatter(X_pos.T[0], X_pos.T[1])
+        plt.scatter(X_neg.T[0], X_neg.T[1])
 
     def predict(self, X):
-        # INSERT_CODE
-
-        return self
+        K = buildKernel(self.X_sv.T, X.T, kernel=self.kernel, kernelparameter=self.kernelparameter)
+        ypred = np.zeros(len(X))
+        for n in range(len(X)):
+            ypred[n] = self.b + np.sum(self.a * self.Y_sv * K[:, n])
+        return ypred
 
 
 # This is already implemented for your convenience
@@ -89,8 +118,24 @@ class svm_sklearn():
 
 
 def plot_boundary_2d(X, y, model):
-    # INSERT CODE
-    pass
+    X_pos = X[np.where(y == 1)]
+    X_neg = X[np.where(y == -1)]
+    maxi = np.max(X, axis=0)
+    mini = np.min(X, axis=0)
+    xm = np.arange(mini[0], maxi[0], 0.01)
+    ym = np.arange(mini[1], maxi[1], 0.01)
+    xx, yy = np.meshgrid(xm, ym, indexing='xy')
+    xy = np.array([xx, yy])
+    xy = xy.T
+    coordinates = xy.reshape((-1, 2))
+    preds = model.predict(coordinates)
+    preds = preds.reshape(len(xm), len(ym)) > 0
+    plt.figure(figsize=(15, 10))
+    plt.contourf(xm, ym, preds.T)
+    if hasattr(model, 'X_sv'):
+        plt.scatter(model.X_sv.T[0], model.X_sv.T[1], marker='+', c='r', s=300)
+    plt.scatter(X_pos.T[0], X_pos.T[1])
+    plt.scatter(X_neg.T[0], X_neg.T[1])
 
 
 def sqdistmat(X, Y=False):
@@ -106,7 +151,7 @@ def sqdistmat(X, Y=False):
 
 def buildKernel(X, Y=False, kernel='linear', kernelparameter=0):
     d, n = X.shape
-    if Y.isinstance(bool) and Y is False:
+    if isinstance(Y, bool) and Y is False:
         Y = X
     if kernel == 'linear':
         K = np.dot(X.T, Y)
