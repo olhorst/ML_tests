@@ -41,8 +41,18 @@ class svm_qp():
         # construct P, q, A, b, G, h matrices for CVXOPT
         P = cvxmatrix(np.outer(Y,Y) * K) #diag instead?
         q = cvxmatrix(np.ones(n_samples) * -1)
-        G = cvxmatrix(np.diag(np.ones(n_samples) * -1))
-        h = cvxmatrix(np.zeros(n_samples))
+
+        if self.C is None:
+            G = cvxmatrix(np.diag(np.ones(n_samples) * -1))
+            h = cvxmatrix(np.zeros(n_samples))
+        else:
+            tmp1 = np.diag(np.ones(n_samples) * -1)
+            tmp2 = np.identity(n_samples)
+            G = cvxmatrix(np.vstack((tmp1, tmp2)))
+            tmp1 = np.zeros(n_samples)
+            tmp2 = np.ones(n_samples) * self.C
+            h = cvxmatrix(np.hstack((tmp1, tmp2)))
+
         A = cvxmatrix(Y, (1,n_samples))
         b = cvxmatrix(0.0)
         # this is already implemented so you don't have to
@@ -54,7 +64,7 @@ class svm_qp():
                             cvxmatrix(A, tc='d'),
                             cvxmatrix(b, tc='d'))['x']).flatten()
         # Support vectors have non zero lagrange multipliers
-        mask = alpha>1e-5#np.logical_and(alpha>1e-5, alpha<self.C/len(alpha)) # some small threshold
+        mask = alpha>1e-5 # some small threshold
         self.X_sv = X[mask]
         self.Y_sv  = Y[mask]
         self.a = alpha[mask]
@@ -151,10 +161,12 @@ def buildKernel(X, Y=False, kernel='linear', kernelparameter=0):
     return K
 
 class neural_network(torch.nn.Module):
-    def __init__(self, layers=[2,100,2], scale=.1, p=None, lr=None, lam=None):
+    def __init__(self, layers=None, scale=.1, p=None, lr=1e-3, lam=None):
         super().__init__()
-        self.weights = torch.nn.ParameterList([torch.nn.Parameter(scale*torch.randn(m, n)) for m, n in zip(layers[:-1], layers[1:])])
-        self.biases = torch.nn.ParameterList([torch.nn.Parameter(scale*torch.randn(n)) for n in layers[1:]])
+        if layers is None:
+            layers = [2, 100, 2]
+        self.weights = torch.nn.ParameterList([torch.nn.Parameter(scale * torch.randn(m, n)) for m, n in zip(layers[:-1], layers[1:])])
+        self.biases = torch.nn.ParameterList([torch.nn.Parameter(scale * torch.randn(n)) for n in layers[1:]])
 
         self.p = p
         self.lr = lr
@@ -162,28 +174,39 @@ class neural_network(torch.nn.Module):
         self.train = False
 
     def relu(self, X, W, b):
-        # YOUR CODE HERE!
-        pass
+        rng = np.random.RandomState()
+        mask = rng.binomial(size=W.size(1), n=1, p=1 - self.p)
+        mask = torch.tensor(mask)
+        Z = mask * (X @ W + b).clamp(0)
+        return Z
 
     def softmax(self, X, W, b):
-        # YOUR CODE HERE!
-        pass
+        Z = X @ W + b
+        Z_exp = torch.exp(Z)
+        partition = torch.sum(torch.exp(Z), dim=1, keepdim=True)
+        return Z_exp / partition
 
     def forward(self, X):
+
         X = torch.tensor(X, dtype=torch.float)
-        # YOUR CODE HERE!
+        for is_last_element, (w, b) in signal_last(zip(self.weights, self.biases)):
+            if not is_last_element:
+                X = self.relu(X, w, b)
+            else:
+                X = self.softmax(X, w, b)
         return X
 
     def predict(self, X):
         return self.forward(X).detach().numpy()
 
     def loss(self, ypred, ytrue):
-        # YOUR CODE HERE!
-        pass
+        m = ypred.shape[0]
+        loss = -torch.sum(ytrue * torch.log(ypred)) / m
+        return loss
 
     def fit(self, X, y, nsteps=1000, bs=100, plot=False):
         X, y = torch.tensor(X), torch.tensor(y)
-        optimizer = SGD(self.parameters(), lr=self.lr, weight_decay=self.lam)
+        optimizer = torch.optim.SGD(self.parameters(), lr=self.lr, weight_decay=self.lam)
 
         I = torch.randperm(X.shape[0])
         n = int(np.ceil(.1 * X.shape[0]))
@@ -211,3 +234,11 @@ class neural_network(torch.nn.Module):
             plt.plot(range(nsteps), Aval, label='Validation acc')
             plt.legend()
             plt.show()
+
+#def signal_last(it: Iterable[Any]) -> Iterable[Tuple[bool, Any]]:
+#    iterable = iter(it)
+#    ret_var = next(iterable)
+#    for val in iterable:
+#        yield False, ret_var
+#        ret_var = val
+#    yield True, ret_var
