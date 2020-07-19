@@ -122,7 +122,7 @@ def buildKernel(X, Y=False, kernel='linear', kernelparameter=0):
 
 
 class neural_network(Module):
-    def __init__(self, layers=None, scale=.1, p=None, lr=1e-3, lam=None):
+    def __init__(self, layers=None, scale=.1, p=None, lr=.1, lam=None):
         super().__init__()
         if layers is None:
             layers = [2, 100, 2]
