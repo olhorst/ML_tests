@@ -118,8 +118,8 @@ class svm_sklearn():
 
 
 def plot_boundary_2d(X, y, model):
-    X_pos = X[np.where(y == 1)]
-    X_neg = X[np.where(y == -1)]
+    X_pos = X[np.where(y > 0)]
+    X_neg = X[np.where(y <= 0)]
     maxi = np.max(X, axis=0)
     mini = np.min(X, axis=0)
     xm = np.arange(mini[0], maxi[0], 0.01)
@@ -129,6 +129,8 @@ def plot_boundary_2d(X, y, model):
     xy = xy.T
     coordinates = xy.reshape((-1, 2))
     preds = model.predict(coordinates)
+    if preds.ndim > 1:
+        preds = (-preds).argmax(1)
     preds = preds.reshape(len(xm), len(ym)) > 0
     plt.figure(figsize=(15, 10))
     plt.contourf(xm, ym, preds.T)
@@ -136,6 +138,7 @@ def plot_boundary_2d(X, y, model):
         plt.scatter(model.X_sv.T[0], model.X_sv.T[1], marker='+', c='r', s=300)
     plt.scatter(X_pos.T[0], X_pos.T[1])
     plt.scatter(X_neg.T[0], X_neg.T[1])
+    plt.show()
 
 
 def sqdistmat(X, Y=False):
