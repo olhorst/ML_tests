@@ -174,8 +174,8 @@ class neural_network(Module):
 
         I = torch.randperm(X.shape[0])
         n = int(np.ceil(.1 * X.shape[0]))
-        Xtrain, ytrain = X[I[:n]], y[I[:n]]
-        Xval, yval = X[I[n:]], y[I[n:]]
+        Xtrain, ytrain = X[I[n:]], y[I[n:]]
+        Xval, yval = X[I[:n]], y[I[:n]]
 
         Ltrain, Lval, Aval = [], [], []
         for i in range(nsteps):
