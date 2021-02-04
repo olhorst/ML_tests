@@ -1,8 +1,8 @@
 """ ps2_implementation.py
 
 PUT YOUR NAME HERE:
-<FIRST_NAME><LAST_NAME>
-
+Benjamin Berta
+Oliver Horst
 
 Write the functions
 - kmeans
